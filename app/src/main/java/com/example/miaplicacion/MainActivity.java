@@ -160,30 +160,8 @@ public class MainActivity extends AppCompatActivity {
 
         builder.setView(layout);
 
-        builder.setPositiveButton("Agregar", new DialogInterface.OnClickListener() {
-            @Override
-            public void onClick(DialogInterface dialog, int which) {
-                Videojuego nuevoJuego = new Videojuego();
-
-                nuevoJuego.setTitulo(inputTitulo.getText().toString());
-                nuevoJuego.setPlataforma(inputPlataforma.getText().toString());
-                nuevoJuego.setGenero(inputGenero.getText().toString());
-
-                try {
-                    nuevoJuego.setAnio(Integer.parseInt(inputAnio.getText().toString()));
-                    nuevoJuego.setPrecio(Double.parseDouble(inputPrecio.getText().toString()));
-                } catch (NumberFormatException e) {
-                    nuevoJuego.setAnio(0);
-                    nuevoJuego.setPrecio(0.0);
-                    Toast.makeText(MainActivity.this, "Números vacíos o incorrectos. Se guardó como 0.", Toast.LENGTH_SHORT).show();
-                }
-
-                listaJuegos.add(nuevoJuego);
-                dbHelper.agregarVideojeugo(nuevoJuego);
-                adaptador.notifyDataSetChanged();
-                Toast.makeText(MainActivity.this, "¡Juego agregado!", Toast.LENGTH_SHORT).show();
-            }
-        });
+        // Se pasa null para configurar el click de forma personalizada abajo y evitar que se cierre solo
+        builder.setPositiveButton("Agregar", null);
 
         builder.setNegativeButton("Cancelar", new DialogInterface.OnClickListener() {
             @Override
@@ -192,7 +170,66 @@ public class MainActivity extends AppCompatActivity {
             }
         });
 
-        builder.show();
+        final AlertDialog dialog = builder.create();
+        dialog.show();
+
+        dialog.getButton(AlertDialog.BUTTON_POSITIVE).setOnClickListener(new View.OnClickListener() {
+            @Override
+            public void onClick(View v) {
+                String titulo = inputTitulo.getText().toString().trim();
+                String plataforma = inputPlataforma.getText().toString().trim();
+                String genero = inputGenero.getText().toString().trim();
+                String anioStr = inputAnio.getText().toString().trim();
+                String precioStr = inputPrecio.getText().toString().trim();
+
+                boolean esValido = true;
+
+                if (titulo.isEmpty()) {
+                    inputTitulo.setError("El título es obligatorio");
+                    esValido = false;
+                }
+                if (plataforma.isEmpty()) {
+                    inputPlataforma.setError("La plataforma es obligatoria");
+                    esValido = false;
+                }
+                if (genero.isEmpty()) {
+                    inputGenero.setError("El género es obligatorio");
+                    esValido = false;
+                }
+                if (anioStr.isEmpty()) {
+                    inputAnio.setError("El año es obligatorio");
+                    esValido = false;
+                }
+                if (precioStr.isEmpty()) {
+                    inputPrecio.setError("El precio es obligatorio");
+                    esValido = false;
+                }
+
+                if (!esValido) {
+                    return; // Detiene la ejecución si hay campos vacíos
+                }
+
+                Videojuego nuevoJuego = new Videojuego();
+                nuevoJuego.setTitulo(titulo);
+                nuevoJuego.setPlataforma(plataforma);
+                nuevoJuego.setGenero(genero);
+
+                try {
+                    nuevoJuego.setAnio(Integer.parseInt(anioStr));
+                    nuevoJuego.setPrecio(Double.parseDouble(precioStr));
+                } catch (NumberFormatException e) {
+                    Toast.makeText(MainActivity.this, "Formato numérico incorrecto.", Toast.LENGTH_SHORT).show();
+                    return;
+                }
+
+                listaJuegos.add(nuevoJuego);
+                dbHelper.agregarVideojeugo(nuevoJuego);
+                adaptador.notifyDataSetChanged();
+                Toast.makeText(MainActivity.this, "¡Juego agregado!", Toast.LENGTH_SHORT).show();
+
+                dialog.dismiss(); // Cierra el diálogo manualmente solo cuando pasa la validación exitosamente
+            }
+        });
     }
 
     private void mostrarDialogoEdicion(final int posicion, final ActionMode mode) {
@@ -229,26 +266,8 @@ public class MainActivity extends AppCompatActivity {
 
         builder.setView(layout);
 
-        builder.setPositiveButton("Guardar", new DialogInterface.OnClickListener() {
-            @Override
-            public void onClick(DialogInterface dialog, int which) {
-                juegoSeleccionado.setPlataforma(inputPlataforma.getText().toString());
-                juegoSeleccionado.setGenero(inputGenero.getText().toString());
-
-                try {
-                    juegoSeleccionado.setAnio(Integer.parseInt(inputAnio.getText().toString()));
-                    juegoSeleccionado.setPrecio(Double.parseDouble(inputPrecio.getText().toString()));
-                } catch (NumberFormatException e) {
-                    Toast.makeText(MainActivity.this, "Revisa los números, el formato es incorrecto", Toast.LENGTH_SHORT).show();
-                }
-
-                dbHelper.actualizarVideojuego(juegoSeleccionado);
-
-                adaptador.notifyDataSetChanged();
-                mode.finish();
-                Toast.makeText(MainActivity.this, "¡Juego actualizado!", Toast.LENGTH_SHORT).show();
-            }
-        });
+        // Se pasa null para configurar el click de forma personalizada abajo y evitar que se cierre solo
+        builder.setPositiveButton("Guardar", null);
 
         builder.setNegativeButton("Cancelar", new DialogInterface.OnClickListener() {
             @Override
@@ -258,6 +277,58 @@ public class MainActivity extends AppCompatActivity {
             }
         });
 
-        builder.show();
+        final AlertDialog dialog = builder.create();
+        dialog.show();
+
+        dialog.getButton(AlertDialog.BUTTON_POSITIVE).setOnClickListener(new View.OnClickListener() {
+            @Override
+            public void onClick(View v) {
+                String plataforma = inputPlataforma.getText().toString().trim();
+                String genero = inputGenero.getText().toString().trim();
+                String anioStr = inputAnio.getText().toString().trim();
+                String precioStr = inputPrecio.getText().toString().trim();
+
+                boolean esValido = true;
+
+                if (plataforma.isEmpty()) {
+                    inputPlataforma.setError("La plataforma es obligatoria");
+                    esValido = false;
+                }
+                if (genero.isEmpty()) {
+                    inputGenero.setError("El género es obligatorio");
+                    esValido = false;
+                }
+                if (anioStr.isEmpty()) {
+                    inputAnio.setError("El año es obligatorio");
+                    esValido = false;
+                }
+                if (precioStr.isEmpty()) {
+                    inputPrecio.setError("El precio es obligatorio");
+                    esValido = false;
+                }
+
+                if (!esValido) {
+                    return; // Detiene la ejecución si hay campos vacíos
+                }
+
+                juegoSeleccionado.setPlataforma(plataforma);
+                juegoSeleccionado.setGenero(genero);
+
+                try {
+                    juegoSeleccionado.setAnio(Integer.parseInt(anioStr));
+                    juegoSeleccionado.setPrecio(Double.parseDouble(precioStr));
+                } catch (NumberFormatException e) {
+                    Toast.makeText(MainActivity.this, "Revisa los números, el formato es incorrecto", Toast.LENGTH_SHORT).show();
+                    return;
+                }
+
+                dbHelper.actualizarVideojuego(juegoSeleccionado);
+                adaptador.notifyDataSetChanged();
+                mode.finish();
+                Toast.makeText(MainActivity.this, "¡Juego actualizado!", Toast.LENGTH_SHORT).show();
+
+                dialog.dismiss(); // Cierra el diálogo manualmente solo cuando pasa la validación exitosamente
+            }
+        });
     }
 }
