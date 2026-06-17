@@ -48,16 +48,6 @@ public class JuegoAdapter extends ArrayAdapter<Videojuego> {
             txtPrecio.setText("Precio: $" + juego.getPrecio());
         }
 
-        // Esto cambia el fondo si el elemento está seleccionado en el ListView
-        if (parent instanceof ListView) {
-            ListView lv = (ListView) parent;
-            if (lv.isItemChecked(position)) {
-                convertView.setBackgroundColor(Color.LTGRAY); // Color gris cuando se selecciona
-            } else {
-                convertView.setBackgroundColor(Color.TRANSPARENT); // Normal
-            }
-        }
-
         return convertView;
     }
 }

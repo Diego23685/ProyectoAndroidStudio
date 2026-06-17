@@ -1,6 +1,8 @@
 package com.example.miaplicacion;
 
+import android.content.DialogInterface;
 import android.os.Bundle;
+import android.text.InputType;
 import android.util.SparseBooleanArray;
 import android.view.ActionMode;
 import android.view.Menu;
@@ -8,10 +10,13 @@ import android.view.MenuItem;
 import android.view.View;
 import android.widget.AbsListView;
 import android.widget.EditText;
+import android.widget.LinearLayout;
 import android.widget.ListView;
 import android.widget.Toast;
+
 import androidx.appcompat.app.AlertDialog;
 import androidx.appcompat.app.AppCompatActivity;
+
 import java.util.ArrayList;
 
 public class MainActivity extends AppCompatActivity {
@@ -19,6 +24,7 @@ public class MainActivity extends AppCompatActivity {
     private ArrayList<Videojuego> listaJuegos;
     private JuegoAdapter adaptador;
     private ListView lvJuegos;
+    private DBHelper dbHelper;
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
@@ -29,45 +35,82 @@ public class MainActivity extends AppCompatActivity {
             getSupportActionBar().setTitle("Mi Colección");
         }
 
-        // 1. Inicializar vistas y listas
         lvJuegos = findViewById(R.id.listViewJuegos);
         listaJuegos = new ArrayList<>();
+        dbHelper = new DBHelper(this);
 
-        // Datos iniciales
-        listaJuegos.add(new Videojuego("Zelda: TotK", "Switch", "Aventura", 2023, 59.99));
+        cargarVideojuegos();
 
-        adaptador = new JuegoAdapter(this, listaJuegos);
-        lvJuegos.setAdapter(adaptador);
-
-        // 2. Configurar el botón flotante (Asegúrate de tener el ID en tu XML)
-        View btnAdd = findViewById(R.id.btnFlotanteAgregar);
-        if (btnAdd != null) {
-            btnAdd.setOnClickListener(v -> mostrarDialogoAgregar());
+        View botonAgregar = findViewById(R.id.btnFlotanteAgregar);
+        if (botonAgregar != null) {
+            botonAgregar.setOnClickListener(new View.OnClickListener() {
+                @Override
+                public void onClick(View v) {
+                    mostrarDialogoAgregar();
+                }
+            });
         }
 
-        // 3. Configurar la SELECCIÓN MÚLTIPLE
+        // 1. Configuramos la lista para permitir selección múltiple
         lvJuegos.setChoiceMode(ListView.CHOICE_MODE_MULTIPLE_MODAL);
+
+        // 2. Agregamos el "Listener" que maneja la selección y los botones superiores
         lvJuegos.setMultiChoiceModeListener(new AbsListView.MultiChoiceModeListener() {
-            @Override
-            public void onItemCheckedStateChanged(ActionMode mode, int position, long id, boolean checked) {
-                mode.setTitle(lvJuegos.getCheckedItemCount() + " seleccionados");
-                adaptador.notifyDataSetChanged(); // Para que el adaptador pinte el fondo gris
-            }
 
             @Override
             public boolean onCreateActionMode(ActionMode mode, Menu menu) {
-                getMenuInflater().inflate(R.menu.menu_contextual, menu);
+                MenuItem editItem = menu.add(Menu.NONE, 1, Menu.NONE, "Editar");
+                editItem.setIcon(android.R.drawable.ic_menu_edit);
+                editItem.setShowAsAction(MenuItem.SHOW_AS_ACTION_ALWAYS);
+
+                MenuItem deleteItem = menu.add(Menu.NONE, 2, Menu.NONE, "Borrar");
+                deleteItem.setIcon(android.R.drawable.ic_menu_delete);
+                deleteItem.setShowAsAction(MenuItem.SHOW_AS_ACTION_ALWAYS);
+
                 return true;
             }
 
             @Override
-            public boolean onActionItemClicked(ActionMode mode, MenuItem item) {
-                if (item.getItemId() == R.id.itemEliminar) {
-                    borrarSeleccionados();
-                    mode.finish();
-                    return true;
+            public void onItemCheckedStateChanged(ActionMode mode, int position, long id, boolean checked) {
+                int seleccionados = lvJuegos.getCheckedItemCount();
+                mode.setTitle(seleccionados + " seleccionados");
+
+                MenuItem editItem = mode.getMenu().findItem(1);
+                if (editItem != null) {
+                    editItem.setVisible(seleccionados == 1);
                 }
-                return false;
+            }
+
+            @Override
+            public boolean onActionItemClicked(ActionMode mode, MenuItem item) {
+                switch (item.getItemId()) {
+                    case 1: // Editar
+                        SparseBooleanArray seleccionadosEditar = lvJuegos.getCheckedItemPositions();
+                        for (int i = 0; i < seleccionadosEditar.size(); i++) {
+                            if (seleccionadosEditar.valueAt(i)) {
+                                int posicionParaEditar = seleccionadosEditar.keyAt(i);
+                                mostrarDialogoEdicion(posicionParaEditar, mode);
+                                break;
+                            }
+                        }
+                        return true;
+
+                    case 2: // Borrar
+                        SparseBooleanArray seleccionadosBorrar = lvJuegos.getCheckedItemPositions();
+                        for (int i = lvJuegos.getCount() - 1; i >= 0; i--) {
+                            if (seleccionadosBorrar.get(i)) {
+                                dbHelper.eliminarVideojuego((Videojuego) listaJuegos.toArray()[i]);
+                                listaJuegos.remove(i);
+                            }
+                        }
+                        adaptador.notifyDataSetChanged();
+                        mode.finish();
+                        Toast.makeText(MainActivity.this, "Juegos eliminados", Toast.LENGTH_SHORT).show();
+                        return true;
+
+                    default:
+                        return false;
+                }
             }
 
             @Override
@@ -76,66 +119,145 @@ public class MainActivity extends AppCompatActivity {
             @Override
             public void onDestroyActionMode(ActionMode mode) { }
         });
-
-        // Configurar ELIMINAR con clic largo (opcional si ya tienes el multi-select)
-        lvJuegos.setOnItemLongClickListener((adapterView, view, i, l) -> {
-            lvJuegos.setItemChecked(i, true);
-            return true;
-        });
-    }
-    private void borrarSeleccionados() {
-        SparseBooleanArray seleccionados = lvJuegos.getCheckedItemPositions();
-        for (int i = seleccionados.size() - 1; i >= 0; i--) {
-            if (seleccionados.valueAt(i)) {
-                int posicion = seleccionados.keyAt(i);
-                listaJuegos.remove(posicion);
-            }
-        }
-        adaptador.notifyDataSetChanged();
-        Toast.makeText(this, "Registros eliminados", Toast.LENGTH_SHORT).show();
     }
 
-    @Override
-    public boolean onCreateOptionsMenu(Menu menu) {
-        getMenuInflater().inflate(R.menu.menu_principal, menu);
-        return true;
-    }
+    private void cargarVideojuegos() {
+        listaJuegos = dbHelper.leerTodosLosVideojuego();
 
-    @Override
-    public boolean onOptionsItemSelected(MenuItem item) {
-        if (item.getItemId() == R.id.itemAgregar) {
-            mostrarDialogoAgregar();
-            return true;
-        }
-        return super.onOptionsItemSelected(item);
+        adaptador = new JuegoAdapter(this, listaJuegos);
+        lvJuegos.setAdapter(adaptador);
     }
 
     private void mostrarDialogoAgregar() {
-        View view = getLayoutInflater().inflate(R.layout.dialog_juego, null);
-        EditText etTitulo = view.findViewById(R.id.etTitulo);
-        EditText etPlataforma = view.findViewById(R.id.etPlataforma);
-        EditText etGenero = view.findViewById(R.id.etGenero);
-        EditText etAnio = view.findViewById(R.id.etAnio);
-        EditText etPrecio = view.findViewById(R.id.etPrecio);
+        AlertDialog.Builder builder = new AlertDialog.Builder(this);
+        builder.setTitle("Nuevo Videojuego");
 
-        new AlertDialog.Builder(this)
-                .setTitle("Nuevo Videojuego")
-                .setView(view)
-                .setPositiveButton("Guardar", (dialogInterface, i) -> {
-                    try {
-                        String t = etTitulo.getText().toString();
-                        String p = etPlataforma.getText().toString();
-                        String g = etGenero.getText().toString();
-                        int a = Integer.parseInt(etAnio.getText().toString().isEmpty() ? "0" : etAnio.getText().toString());
-                        double pre = Double.parseDouble(etPrecio.getText().toString().isEmpty() ? "0.0" : etPrecio.getText().toString());
+        LinearLayout layout = new LinearLayout(this);
+        layout.setOrientation(LinearLayout.VERTICAL);
+        layout.setPadding(50, 40, 50, 10);
 
-                        listaJuegos.add(new Videojuego(t, p, g, a, pre));
-                        adaptador.notifyDataSetChanged();
-                    } catch (Exception e) {
-                        Toast.makeText(this, "Error en los datos", Toast.LENGTH_SHORT).show();
-                    }
-                })
-                .setNegativeButton("Cancelar", null)
-                .show();
+        final EditText inputTitulo = new EditText(this);
+        inputTitulo.setHint("Título");
+        layout.addView(inputTitulo);
+
+        final EditText inputPlataforma = new EditText(this);
+        inputPlataforma.setHint("Plataforma");
+        layout.addView(inputPlataforma);
+
+        final EditText inputGenero = new EditText(this);
+        inputGenero.setHint("Género");
+        layout.addView(inputGenero);
+
+        final EditText inputAnio = new EditText(this);
+        inputAnio.setHint("Año");
+        inputAnio.setInputType(InputType.TYPE_CLASS_NUMBER);
+        layout.addView(inputAnio);
+
+        final EditText inputPrecio = new EditText(this);
+        inputPrecio.setHint("Precio");
+        inputPrecio.setInputType(InputType.TYPE_CLASS_NUMBER | InputType.TYPE_NUMBER_FLAG_DECIMAL);
+        layout.addView(inputPrecio);
+
+        builder.setView(layout);
+
+        builder.setPositiveButton("Agregar", new DialogInterface.OnClickListener() {
+            @Override
+            public void onClick(DialogInterface dialog, int which) {
+                Videojuego nuevoJuego = new Videojuego();
+
+                nuevoJuego.setTitulo(inputTitulo.getText().toString());
+                nuevoJuego.setPlataforma(inputPlataforma.getText().toString());
+                nuevoJuego.setGenero(inputGenero.getText().toString());
+
+                try {
+                    nuevoJuego.setAnio(Integer.parseInt(inputAnio.getText().toString()));
+                    nuevoJuego.setPrecio(Double.parseDouble(inputPrecio.getText().toString()));
+                } catch (NumberFormatException e) {
+                    nuevoJuego.setAnio(0);
+                    nuevoJuego.setPrecio(0.0);
+                    Toast.makeText(MainActivity.this, "Números vacíos o incorrectos. Se guardó como 0.", Toast.LENGTH_SHORT).show();
+                }
+
+                listaJuegos.add(nuevoJuego);
+                dbHelper.agregarVideojeugo(nuevoJuego);
+                adaptador.notifyDataSetChanged();
+                Toast.makeText(MainActivity.this, "¡Juego agregado!", Toast.LENGTH_SHORT).show();
+            }
+        });
+
+        builder.setNegativeButton("Cancelar", new DialogInterface.OnClickListener() {
+            @Override
+            public void onClick(DialogInterface dialog, int which) {
+                dialog.cancel();
+            }
+        });
+
+        builder.show();
+    }
+
+    private void mostrarDialogoEdicion(final int posicion, final ActionMode mode) {
+        final Videojuego juegoSeleccionado = listaJuegos.get(posicion);
+
+        AlertDialog.Builder builder = new AlertDialog.Builder(this);
+        builder.setTitle("Editar Videojuego");
+
+        LinearLayout layout = new LinearLayout(this);
+        layout.setOrientation(LinearLayout.VERTICAL);
+        layout.setPadding(50, 40, 50, 10);
+
+        final EditText inputPlataforma = new EditText(this);
+        inputPlataforma.setHint("Plataforma");
+        inputPlataforma.setText(juegoSeleccionado.getPlataforma());
+        layout.addView(inputPlataforma);
+
+        final EditText inputGenero = new EditText(this);
+        inputGenero.setHint("Género");
+        inputGenero.setText(juegoSeleccionado.getGenero());
+        layout.addView(inputGenero);
+
+        final EditText inputAnio = new EditText(this);
+        inputAnio.setHint("Año");
+        inputAnio.setInputType(InputType.TYPE_CLASS_NUMBER);
+        inputAnio.setText(String.valueOf(juegoSeleccionado.getAnio()));
+        layout.addView(inputAnio);
+
+        final EditText inputPrecio = new EditText(this);
+        inputPrecio.setHint("Precio");
+        inputPrecio.setInputType(InputType.TYPE_CLASS_NUMBER | InputType.TYPE_NUMBER_FLAG_DECIMAL);
+        inputPrecio.setText(String.valueOf(juegoSeleccionado.getPrecio()));
+        layout.addView(inputPrecio);
+
+        builder.setView(layout);
+
+        builder.setPositiveButton("Guardar", new DialogInterface.OnClickListener() {
+            @Override
+            public void onClick(DialogInterface dialog, int which) {
+                juegoSeleccionado.setPlataforma(inputPlataforma.getText().toString());
+                juegoSeleccionado.setGenero(inputGenero.getText().toString());
+
+                try {
+                    juegoSeleccionado.setAnio(Integer.parseInt(inputAnio.getText().toString()));
+                    juegoSeleccionado.setPrecio(Double.parseDouble(inputPrecio.getText().toString()));
+                } catch (NumberFormatException e) {
+                    Toast.makeText(MainActivity.this, "Revisa los números, el formato es incorrecto", Toast.LENGTH_SHORT).show();
+                }
+
+                dbHelper.actualizarVideojuego(juegoSeleccionado);
+
+                adaptador.notifyDataSetChanged();
+                mode.finish();
+                Toast.makeText(MainActivity.this, "¡Juego actualizado!", Toast.LENGTH_SHORT).show();
+            }
+        });
+
+        builder.setNegativeButton("Cancelar", new DialogInterface.OnClickListener() {
+            @Override
+            public void onClick(DialogInterface dialog, int which) {
+                dialog.cancel();
+                mode.finish();
+            }
+        });
+
+        builder.show();
     }
 }
