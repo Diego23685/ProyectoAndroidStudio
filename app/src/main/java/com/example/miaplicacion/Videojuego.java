@@ -1,6 +1,7 @@
 package com.example.miaplicacion;
 
 public class Videojuego {
+    private int id;
     private String titulo;
     private String plataforma;
     private String genero;
@@ -8,7 +9,8 @@ public class Videojuego {
     private double precio;
 
     // Constructor
-    public Videojuego(String titulo, String plataforma, String genero, int anio, double precio) {
+    public Videojuego(int id, String titulo, String plataforma, String genero, int anio, double precio) {
+        this.id = id;
         this.titulo = titulo;
         this.plataforma = plataforma;
         this.genero = genero;
@@ -18,7 +20,9 @@ public class Videojuego {
 
     public Videojuego() {}
 
-    // Getters (necesarios para que el adaptador lea los datos de su pene)
+    // Getters (necesarios para que el adaptador lea los datos)
+    public int getId() { return id; }
+    public void setId(int id) {this.id = id;}
     public String getTitulo() { return titulo; }
     public void setTitulo(String titulo) {this.titulo = titulo;}
     public String getPlataforma() { return plataforma; }
