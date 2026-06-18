@@ -24,7 +24,6 @@ public class MainActivity extends AppCompatActivity {
     private ArrayList<Videojuego> listaJuegos;
     private JuegoAdapter adaptador;
     private ListView lvJuegos;
-    private DBHelper dbHelper;
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
